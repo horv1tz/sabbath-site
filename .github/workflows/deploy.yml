@@ -40,23 +40,6 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: npm install
 
-      - name: "✅ TG: Setup completed"
-        if: success()
-        uses: appleboy/telegram-action@master
-        continue-on-error: true
-        with:
-          to: ${{ secrets.TELEGRAM_TO }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: "✅ [SETUP COMPLETED] - Repo: ${{ github.repository }}\nBranch: ${{ github.ref_name }}"
-
-      - name: "❌ TG: Setup failed"
-        if: failure()
-        uses: appleboy/telegram-action@master
-        continue-on-error: true
-        with:
-          to: ${{ secrets.TELEGRAM_TO }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: "❌ [SETUP FAILED] - Repo: ${{ github.repository }}\nBranch: ${{ github.ref_name }}"
 
   build:
     runs-on: ubuntu-latest
@@ -83,23 +66,6 @@ jobs:
           set -e
           docker push docker.dvorfs.com/horvitz/sabbath-site:${{ needs.setup.outputs.short_sha }}
 
-      - name: "✅ TG: Build completed"
-        if: success()
-        uses: appleboy/telegram-action@master
-        continue-on-error: true
-        with:
-          to: ${{ secrets.TELEGRAM_TO }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: "📦 [BUILD COMPLETED] - Repo: ${{ github.repository }}\nBranch: ${{ github.ref_name }}"
-
-      - name: "❌ TG: Build failed"
-        if: failure()
-        uses: appleboy/telegram-action@master
-        continue-on-error: true
-        with:
-          to: ${{ secrets.TELEGRAM_TO }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: "❌ [BUILD FAILED] - Repo: ${{ github.repository }}\nBranch: ${{ github.ref_name }}"
 
   deploy:
     runs-on: ubuntu-latest
@@ -111,33 +77,16 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SERVER: ${{ secrets.SERVER }}
           USER: ${{ secrets.USER }}
+          PORT: ${{ secrets.PORT }}
         run: |
           set -e
           eval "$(ssh-agent -s)"
           echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
           
-          ssh -o StrictHostKeyChecking=no $USER@$SERVER << EOF
+          ssh -o StrictHostKeyChecking=no -p $PORT $USER@$SERVER << EOF
             echo "Deploying to Swarm..."
             docker service rm sabbath-site || true
             docker service create --name sabbath-site --replicas 3 --publish 4173:4173 --constraint 'node.role == worker' --with-registry-auth docker.dvorfs.com/horvitz/sabbath-site:${{ needs.setup.outputs.short_sha }}
           EOF
           
           ssh-agent -k
-
-      - name: "✅ TG: Deploy completed"
-        if: success()
-        uses: appleboy/telegram-action@master
-        continue-on-error: true
-        with:
-          to: ${{ secrets.TELEGRAM_TO }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: "🚀 [DEPLOY COMPLETED] - Repo: ${{ github.repository }}\nBranch: ${{ github.ref_name }}\nServer: http://${{ secrets.SERVER }}:4173"
-
-      - name: "❌ TG: Deploy failed"
-        if: failure()
-        uses: appleboy/telegram-action@master
-        continue-on-error: true
-        with:
-          to: ${{ secrets.TELEGRAM_TO }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: "❌ [DEPLOY FAILED] - Repo: ${{ github.repository }}\nBranch: ${{ github.ref_name }}\nServer: http://${{ secrets.SERVER }}:4173"
