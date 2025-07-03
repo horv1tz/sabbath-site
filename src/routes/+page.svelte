@@ -36,7 +36,7 @@
 <div class="app">
     <div class="profile-card">
         <div class="profile-image">
-            <img src="https://s3.dvorfs.com/horvitz-site/sabbath.jpg" alt="Profile photo" />
+            <img src="/images/sabbath.webp" alt="Profile photo" />
         </div>
         <div class="profile-info">
             <h1>{$t('main.name')}</h1>
