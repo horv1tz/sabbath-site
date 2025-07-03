@@ -18,6 +18,9 @@ const config = ({
 export const { t, locale, locales, loading, loadTranslations } = new i18n(config);
 
 // Функция смены языка
+/**
+ * @param {string} newLocale
+ */
 export const setLocale = async (newLocale) => {
     locale.set(newLocale);
     await loadTranslations(newLocale, window.location.pathname);
