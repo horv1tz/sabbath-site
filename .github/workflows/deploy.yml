@@ -3,13 +3,14 @@ name: Build and Deploy by Docker
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   setup:
     runs-on: ubuntu-latest
     outputs:
       node-cache-path: ${{ steps.cache.outputs.cache-hit }}
+      short_sha: ${{ steps.vars.outputs.short_sha }}
 
     steps:
       - name: Checkout repository
@@ -28,6 +29,12 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
+          
+      - name: Set short git commit SHA
+        id: vars
+        run: |
+          calculatedSha=$(git rev-parse --short ${{ github.sha }})
+          echo "short_sha=$calculatedSha" >> $GITHUB_OUTPUT
 
       - name: Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'
@@ -62,7 +69,7 @@ jobs:
       - name: Build Docker image
         run: |
           set -e
-          docker build -t docker.dvorfs.com/horvitz/site:latest -f ./docker/Dockerfile .
+          docker build -t docker.dvorfs.com/horvitz/sabbath-site:${{ needs.setup.outputs.short_sha }} -f ./docker/Dockerfile .
 
       - name: Log in to Docker registry
         uses: docker/login-action@v2
@@ -74,7 +81,7 @@ jobs:
       - name: Push Docker image
         run: |
           set -e
-          docker push docker.dvorfs.com/horvitz/site:latest
+          docker push docker.dvorfs.com/horvitz/sabbath-site:${{ needs.setup.outputs.short_sha }}
 
       - name: "✅ TG: Build completed"
         if: success()
@@ -111,8 +118,8 @@ jobs:
           
           ssh -o StrictHostKeyChecking=no $USER@$SERVER << EOF
             echo "Deploying to Swarm..."
-            docker service rm horvitz-site || true
-            docker service create --name horvitz-site --replicas 3 --publish 4173:4173 --constraint 'node.role == worker' --with-registry-auth docker.dvorfs.com/horvitz/site:latest
+            docker service rm sabbath-site || true
+            docker service create --name sabbath-site --replicas 3 --publish 4173:4173 --constraint 'node.role == worker' --with-registry-auth docker.dvorfs.com/horvitz/sabbath-site:${{ needs.setup.outputs.short_sha }}
           EOF
           
           ssh-agent -k
